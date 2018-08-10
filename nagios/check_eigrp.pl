@@ -3,8 +3,10 @@ use strict;
 use warnings;
 use SNMP;
 use Socket;
-use lib "/usr/lib64/nagios/plugins";
+use lib "/usr/lib/nagios/plugins";
 use utils qw(%ERRORS);
+use Getopt::Long;
+
 # LOAD MIBS AND INIT SNMP
 &SNMP::addMibDirs("/usr/share/snmp/mibs/");
 &SNMP::loadModules("ALL");
@@ -13,6 +15,7 @@ use utils qw(%ERRORS);
 my $comm = 'public';
 my $sver = '2c';
 my $AS = 1;
+my $verbose = 0;
 my $count;
 my $peerip;
 my $oktet;
@@ -23,31 +26,29 @@ my %snmpparms;
 my $arg;
 my $vb;
 my $var;
+my $opts;
 my $errnum = $ERRORS{'OK'};
-# MAIN
-## GET COMMAND LINE PARAMETERS 
-### "-H" - HOST IP, 
-### "-c" - COMMUNITY, 
-### "-p" - GOOD NEIGHBORS COUNT, 
-### "-AS" - EIGRP autonomous system value;
-while ( $arg = shift @ARGV ) {
-        if ( $arg eq '-H') {
-			$dest = shift @ARGV;
-        }
-        elsif ( $arg eq '-c' ) {
-			$comm = shift @ARGV;
-        }
-		elsif ( $arg eq '-p' ) {
-            $count = shift @ARGV;
-        }
-		elsif ( $arg eq '-AS' ) {
-            $AS = shift @ARGV;
-        }
-        else {
-			print "ERROR: BAD ARGUMENTS.\n";
-			exit $ERRORS{'UNKNOWN'};
-        }
+
+sub usage {
+  printf "\nMissing arguments!\n";
+  printf "\n";
+  printf "checks operation of the EIGRP protocol and list of neighbors\n";
+  printf "usage: \n";
+  printf "check_eigrp.pl -H hostipaddress -n neighbors -a EIGRP AS number [-C community] [-v]\n";
+  printf "\n\n";
+  exit $ERRORS{"UNKNOWN"};
 }
+
+$opts = GetOptions("community=s",\$comm,
+                   "hostipaddress=s",\$dest,
+                   "asnumber=i",\$AS,
+                   "verbose",\$verbose,
+                   "neighbors=i",\$count);
+if ($opts == 0)
+{
+        &usage;
+}
+
 ## SET OID
 my $peeripoid = "1.3.6.1.4.1.9.9.449.1.4.1.1.3.0.$AS";
 my $peercount = "1.3.6.1.4.1.9.9.449.1.2.1.1.2.0.$AS";
@@ -76,14 +77,13 @@ else {
 			print "WARNING: The number of neighbors has changed. Total neighbors is $peercount. Should be $count.\n";
 			$errnum = $ERRORS{'WARNING'};
 		}
-		if ( $peercount < 2 ) {
-			print "I have $peercount EIGRP neighbor:\n";
-		}
 		else {
-			print "I have $peercount EIGRP neighbors:\n";
+			print "OK: Neighbors count is $count|";
 		}
+		if ($verbose) {
 		my $i;
 		my $j;
+		print "\n";
 		for ( $i = 0; $i < $peercount; $i++ ) {
 			$vb = SNMP::Varbind->new(["$peeripoid.$i",'']);
 			$peerip = $sess->get($vb);
@@ -99,6 +99,7 @@ else {
 			$substr =~ s/.//;
 			print "\t",$substr,"\n";
 			$substr = '';
+		    }
 		}
 	}
 }
