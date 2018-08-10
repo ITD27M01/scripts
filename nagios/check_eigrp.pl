@@ -15,6 +15,7 @@ use Getopt::Long;
 my $comm = 'public';
 my $sver = '2c';
 my $AS = 1;
+my $verbose = 0;
 my $count;
 my $peerip;
 my $oktet;
@@ -39,9 +40,10 @@ sub usage {
 }
 
 $opts = GetOptions("community=s",\$comm,
-                     "hostipaddress=s",\$dest,
-                     "asnumber=i",\$AS,
-                     "neighbors=i",\$count);
+                   "hostipaddress=s",\$dest,
+                   "asnumber=i",\$AS,
+                   "verbose",\$verbose,
+                   "neighbors=i",\$count);
 if ($opts == 0)
 {
         &usage;
@@ -75,14 +77,13 @@ else {
 			print "WARNING: The number of neighbors has changed. Total neighbors is $peercount. Should be $count.\n";
 			$errnum = $ERRORS{'WARNING'};
 		}
-		if ( $peercount < 2 ) {
-			print "I have $peercount EIGRP neighbor:\n";
-		}
 		else {
-			print "I have $peercount EIGRP neighbors:\n";
+			print "OK: Neighbors count is $count|";
 		}
+		if ($verbose) {
 		my $i;
 		my $j;
+		print "\n";
 		for ( $i = 0; $i < $peercount; $i++ ) {
 			$vb = SNMP::Varbind->new(["$peeripoid.$i",'']);
 			$peerip = $sess->get($vb);
@@ -98,6 +99,7 @@ else {
 			$substr =~ s/.//;
 			print "\t",$substr,"\n";
 			$substr = '';
+		    }
 		}
 	}
 }
